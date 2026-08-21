@@ -1,8 +1,18 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+
+const inputStyle = {
+  padding: 12,
+  borderRadius: 10,
+  border: '1px solid var(--line)',
+  background: 'var(--bg-alt)',
+  color: 'var(--text)',
+  fontSize: 14,
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,6 +24,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const m = params.get('mode')
+    if (m === 'login') setMode('login')
+    if (m === 'signup') setMode('signup')
+  }, [])
 
   async function routeAfterAuth(userId: string) {
     const { data } = await supabase
@@ -63,70 +80,98 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: '80px auto', padding: 24, fontFamily: 'sans-serif' }}>
-      <h1>JIG'SWurlD</h1>
-      <h2>{mode === 'login' ? 'Log in' : 'Create account'}</h2>
+    <>
+      <header>
+        <div className="wrap">
+          <nav>
+            <Link href="/" className="logo">
+              JIG'S<span className="dot">Wurl</span>D
+            </Link>
+            <div className="nav-cta">
+              <Link href="/discover" className="btn btn-ghost">Discover</Link>
+            </div>
+          </nav>
+        </div>
+      </header>
 
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12, marginTop: 20 }}>
-        {mode === 'signup' && (
-          <>
-            <input
-              type="text"
-              placeholder="Full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              style={{ padding: 10 }}
-            />
+      <main style={{ maxWidth: 460, margin: '60px auto', padding: '0 24px' }}>
+        <div className="eyebrow">
+          {mode === 'login' ? 'Welcome back' : 'Now boarding independent artists'}
+        </div>
+        <h1 style={{ marginBottom: 6 }}>
+          {mode === 'login' ? 'Log in' : 'Create account'}
+        </h1>
+        <p style={{ color: 'var(--text-dim)', marginBottom: 24 }}>
+          {mode === 'login'
+            ? 'Pick up where you left off.'
+            : 'Keep your masters. Build your audience. Get paid.'}
+        </p>
 
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as 'artist' | 'listener')}
-              style={{ padding: 10 }}
-            >
-              <option value="artist">I am an Artist</option>
-              <option value="listener">I am a Listener</option>
-            </select>
-          </>
-        )}
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
+          {mode === 'signup' && (
+            <>
+              <input
+                type="text"
+                placeholder="Full name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                style={inputStyle}
+              />
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          style={{ padding: 10 }}
-        />
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'artist' | 'listener')}
+                style={inputStyle}
+              >
+                <option value="artist">I am an Artist</option>
+                <option value="listener">I am a Listener</option>
+              </select>
+            </>
+          )}
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          style={{ padding: 10 }}
-        />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={inputStyle}
+          />
 
-        <button disabled={loading} style={{ padding: 12 }}>
-          {loading ? 'Loading...' : mode === 'login' ? 'Log In' : 'Create Account'}
-        </button>
-      </form>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            style={inputStyle}
+          />
 
-      {message && <p style={{ marginTop: 12 }}>{message}</p>}
-
-      <div style={{ marginTop: 20 }}>
-        {mode === 'login' ? (
-          <button onClick={() => setMode('signup')}>
-            New here? Create an account
+          <button
+            disabled={loading}
+            className="btn btn-primary"
+            style={{ justifyContent: 'center' }}
+          >
+            {loading ? 'Loading...' : mode === 'login' ? 'Log In' : 'Create Account'}
           </button>
-        ) : (
-          <button onClick={() => setMode('login')}>
-            Already have an account? Log in
-          </button>
-        )}
-      </div>
-    </main>
+        </form>
+
+        {message && <p style={{ marginTop: 12, color: 'var(--pink)' }}>{message}</p>}
+
+        <div style={{ marginTop: 20 }}>
+          {mode === 'login' ? (
+            <button className="btn btn-ghost" onClick={() => setMode('signup')}>
+              New here? Create an account
+            </button>
+          ) : (
+            <button className="btn btn-ghost" onClick={() => setMode('login')}>
+              Already have an account? Log in
+            </button>
+          )}
+        </div>
+      </main>
+    </>
   )
 }

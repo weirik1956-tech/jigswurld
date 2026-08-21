@@ -9,10 +9,11 @@ export default function Home() {
             <Link href="/" className="logo">
               JIG'S<span className="dot">Wurl</span>D
             </Link>
-            <div className="nav-cta">
+              <div className="nav-cta">
               <Link href="/discover" className="btn btn-ghost">Discover</Link>
               <Link href="/dashboard" className="btn btn-ghost">Dashboard</Link>
-              <Link href="/login" className="btn btn-primary">Join Early Access</Link>
+              <Link href="/login?mode=login" className="btn btn-ghost">Log in</Link>
+              <Link href="/login?mode=signup" className="btn btn-primary">Sign up</Link>
             </div>
           </nav>
         </div>
