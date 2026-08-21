@@ -335,4 +335,4 @@ export default function DiscoverPage() {
       )}
     </>
   )
-}s
+}
