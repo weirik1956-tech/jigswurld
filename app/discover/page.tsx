@@ -1,15 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { usePlayer } from '../player-context'
 
 type Track = {
   id: string
   title: string
   audio_path: string
   cover_path: string | null
+  lyrics: string | null
   artist_id: string
   artist_name?: string
 }
@@ -25,35 +26,19 @@ function storageUrl(bucket: string, path: string) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`
 }
 
-function fmt(s: number) {
-  const m = Math.floor(s / 60)
-  const sec = Math.floor(s % 60)
-  return `${m}:${String(sec).padStart(2, '0')}`
-}
-
-const playSvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-const pauseSvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z" /></svg>
-
 export default function DiscoverPage() {
-  const [tracks, setTracks] = useState<Track[]>([])
-  const [currentIdx, setCurrentIdx] = useState(-1)
-  const [playing, setPlaying] = useState(false)
-  const [time, setTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [message, setMessage] = useState('')
+  const player = usePlayer()
 
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [message, setMessage] = useState('')
   const [myLikes, setMyLikes] = useState<string[]>([])
   const [myFollows, setMyFollows] = useState<string[]>([])
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [followCounts, setFollowCounts] = useState<Record<string, number>>({})
-
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [lyricsOpen, setLyricsOpen] = useState<string | null>(null)
 
   useEffect(() => {
     loadAll()
-    return () => {
-      audioRef.current?.pause()
-    }
   }, [])
 
   async function loadAll() {
@@ -162,69 +147,6 @@ export default function DiscoverPage() {
     }
   }
 
-  async function logPlay(trackId: string) {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    await supabase.from('plays').insert({
-      track_id: trackId,
-      listener_id: session.user.id,
-    })
-  }
-
-  function stopAll() {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
-    }
-    setPlaying(false)
-  }
-
-  function playIdx(idx: number) {
-    const track = tracks[idx]
-    if (!track) return
-
-    if (currentIdx === idx && audioRef.current) {
-      if (playing) {
-        audioRef.current.pause()
-        setPlaying(false)
-      } else {
-        audioRef.current.play()
-        setPlaying(true)
-      }
-      return
-    }
-
-    stopAll()
-    const audio = new Audio(storageUrl('tracks', track.audio_path))
-    audioRef.current = audio
-    setCurrentIdx(idx)
-    setPlaying(true)
-    setTime(0)
-    setDuration(0)
-
-    audio.ontimeupdate = () => setTime(audio.currentTime)
-    audio.onloadedmetadata = () => setDuration(audio.duration || 0)
-    audio.onended = () => playIdx((idx + 1) % tracks.length)
-    audio.onerror = () => {
-      setMessage('Playback failed for this track.')
-      setPlaying(false)
-    }
-
-    audio
-      .play()
-      .then(() => logPlay(track.id))
-      .catch(() => setMessage('Playback failed.'))
-  }
-
-  function seek(e: MouseEvent<HTMLDivElement>) {
-    if (!audioRef.current || !duration) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const pct = (e.clientX - rect.left) / rect.width
-    audioRef.current.currentTime = pct * duration
-  }
-
-  const current = currentIdx > -1 ? tracks[currentIdx] : null
-
   return (
     <>
       <header>
@@ -247,7 +169,7 @@ export default function DiscoverPage() {
             <div className="section-head">
               <div className="eyebrow">Discovery engine</div>
               <h2>New releases, before they blow up.</h2>
-              <p>Tap any card to stream it. Like tracks and follow artists for real.</p>
+              <p>Music keeps playing while you browse the whole site.</p>
             </div>
 
             {message && <p style={{ color: 'var(--pink)', marginBottom: 16 }}>{message}</p>}
@@ -262,8 +184,8 @@ export default function DiscoverPage() {
                 {tracks.map((t, i) => (
                   <div
                     key={t.id}
-                    className={'song-card' + (currentIdx === i ? ' playing' : '')}
-                    onClick={() => playIdx(i)}
+                    className={'song-card' + (player.current?.id === t.id ? ' playing' : '')}
+                    onClick={() => player.playTrack(t, tracks)}
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="cover" style={{ background: FALLBACKS[i % FALLBACKS.length] }}>
@@ -297,7 +219,24 @@ export default function DiscoverPage() {
                         >
                           {myFollows.includes(t.artist_id) ? 'Following' : 'Follow'} · {followCounts[t.artist_id] || 0}
                         </button>
+                        <button onClick={() => setLyricsOpen(lyricsOpen === t.id ? null : t.id)}>
+                          {lyricsOpen === t.id ? 'Hide lyrics' : '♪ Lyrics'}
+                        </button>
                       </div>
+                      {lyricsOpen === t.id && (
+                        <pre
+                          style={{
+                            whiteSpace: 'pre-wrap',
+                            marginTop: 10,
+                            fontSize: 12.5,
+                            lineHeight: 1.6,
+                            color: 'var(--text-dim)',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          {t.lyrics || 'No lyrics uploaded for this track.'}
+                        </pre>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -306,33 +245,6 @@ export default function DiscoverPage() {
           </div>
         </section>
       </main>
-
-      {current && (
-        <div className="now-playing show">
-          <div className="wrap np-inner">
-            <div className="np-art" style={{ background: FALLBACKS[currentIdx % FALLBACKS.length] }}></div>
-            <div className="np-meta">
-              <h5>{current.title}</h5>
-              <p>{current.artist_name}</p>
-            </div>
-            <div className="np-controls">
-              <button className="np-play" onClick={() => playIdx(currentIdx)} aria-label="Play/Pause">
-                {playing ? pauseSvg : playSvg}
-              </button>
-            </div>
-            <div className="np-progress-wrap">
-              <span>{fmt(time)}</span>
-              <div className="np-progress" onClick={seek}>
-                <i style={{ width: duration ? `${(time / duration) * 100}%` : '0%' }}></i>
-              </div>
-              <span>{fmt(duration)}</span>
-            </div>
-            <button className="np-close" onClick={() => { stopAll(); setCurrentIdx(-1) }}>
-              {'✕'}
-            </button>
-          </div>
-        </div>
-      )}
     </>
   )
 }
