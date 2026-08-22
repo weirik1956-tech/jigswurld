@@ -38,7 +38,18 @@ export default function DiscoverPage() {
   const [lyricsOpen, setLyricsOpen] = useState<string | null>(null)
 
   useEffect(() => {
-    loadAll()
+    async function run() {
+      await loadAll()
+      const params = new URLSearchParams(window.location.search)
+      const trackParam = params.get('track')
+      if (trackParam) {
+        setTimeout(() => {
+          const el = document.getElementById('track-' + trackParam)
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 400)
+      }
+    }
+    run()
   }, [])
 
   async function loadAll() {
@@ -146,6 +157,26 @@ export default function DiscoverPage() {
       setFollowCounts({ ...followCounts, [artistId]: (followCounts[artistId] || 0) + 1 })
     }
   }
+    async function shareTrack(t: Track) {
+    const url = `https://jigswurld-xw5l.vercel.app/discover?track=${t.id}`
+    const text = `🎧 "${t.title}" by ${t.artist_name} on JIG'SWurlD`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "JIG'SWurlD", text, url })
+        return
+      } catch {
+        // user closed the share sheet — fall back to copy
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`)
+      setMessage('Share link copied — paste it anywhere!')
+    } catch {
+      setMessage(url)
+    }
+  }
 
   return (
     <>
@@ -182,8 +213,9 @@ export default function DiscoverPage() {
             ) : (
               <div className="discovery-grid">
                 {tracks.map((t, i) => (
-                  <div
+                      <div
                     key={t.id}
+                    id={'track-' + t.id}
                     className={'song-card' + (player.current?.id === t.id ? ' playing' : '')}
                     onClick={() => player.playTrack(t, tracks)}
                     style={{ cursor: 'pointer' }}
@@ -222,6 +254,7 @@ export default function DiscoverPage() {
                         <button onClick={() => setLyricsOpen(lyricsOpen === t.id ? null : t.id)}>
                           {lyricsOpen === t.id ? 'Hide lyrics' : '♪ Lyrics'}
                         </button>
+                                                <button onClick={() => shareTrack(t)}>Share</button>
                       </div>
                       {lyricsOpen === t.id && (
                         <pre

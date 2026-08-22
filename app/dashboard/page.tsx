@@ -99,6 +99,26 @@ export default function DashboardPage() {
     await supabase.auth.signOut()
     router.replace('/login')
   }
+    async function shareTrack(t: Track) {
+    const url = `https://jigswurld-xw5l.vercel.app/discover?track=${t.id}`
+    const text = `🎧 "${t.title}" by ${profile?.full_name} on JIG'SWurlD`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "JIG'SWurlD", text, url })
+        return
+      } catch {
+        // closed share sheet
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`)
+      setMessage('Share link copied — paste it anywhere!')
+    } catch {
+      setMessage(url)
+    }
+  }
 
   function playCount(trackId: string) {
     return plays.filter((p) => p.track_id === trackId).length
@@ -203,8 +223,15 @@ export default function DashboardPage() {
                         <h4>{t.title}</h4>
                         <p>{t.is_published ? 'Published' : 'Draft'}</p>
                       </div>
-                      <div className="tags">
+                                           <div className="tags">
                         <span className="tag">{playCount(t.id)} plays</span>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ padding: '6px 12px', fontSize: 12 }}
+                          onClick={() => shareTrack(t)}
+                        >
+                          Share
+                        </button>
                       </div>
                     </div>
                   ))}
