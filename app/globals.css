@@ -276,3 +276,97 @@ footer{border-top:1px solid var(--line); padding:48px 0 32px;}
 .card-actions button:hover{border-color:var(--pink); color:var(--text);}
 .card-actions button.active{color:var(--pink); border-color:var(--pink); background:rgba(255,77,109,0.1);}
 .card-actions button.follow.active{color:var(--teal); border-color:var(--teal); background:rgba(55,230,196,0.1);}
+
+/* =========================================
+   MOBILE POLISH - JIG'SWurlD
+   ========================================= */
+
+/* Give the page bottom padding so the music player doesn't cover the last song */
+main {
+  padding-bottom: 120px !important;
+}
+
+/* When the screen is smaller than a tablet (768px) */
+@media (max-width: 768px) {
+  
+  /* Make the discover grid 1 column on phones, 2 on small tablets */
+  .discovery-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  @media (min-width: 500px) {
+    .discovery-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  /* Make the top navigation buttons fit nicely */
+  .nav-cta {
+    gap: 6px;
+  }
+
+  .btn {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  /* Make the hero stats stack vertically on phones */
+  .hero-stats {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  /* Fix the bottom player for small screens */
+  .now-playing.show .wrap {
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 10px;
+  }
+  
+  .now-playing.show .np-meta {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .now-playing.show .np-progress-wrap {
+    width: 100%;
+    order: 3;
+  }
+}
+
+/* =========================================
+   ANY-SIZE SAFETY NET
+   ========================================= */
+
+/* Never allow sideways scrolling on ANY device */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Fluid headings: shrink smoothly on tiny screens, grow on big ones */
+h1 { font-size: clamp(28px, 6vw, 56px); }
+h2 { font-size: clamp(22px, 4.5vw, 40px); }
+
+/* Long song titles wrap instead of breaking the layout */
+.song-card .info h5,
+.np-meta h5 {
+  overflow-wrap: anywhere;
+}
+
+/* Extra-small phones (iPhone SE, old Androids ~320px) */
+@media (max-width: 380px) {
+  .wrap { padding-left: 14px; padding-right: 14px; }
+  .nav-cta .btn { padding: 6px 10px !important; font-size: 12px !important; }
+  .logo { font-size: 16px; }
+  .card-actions { gap: 6px; }
+  .card-actions button { padding: 6px 8px; font-size: 11px; }
+}
+
+/* Landscape phones (short screens) — compact player */
+@media (max-height: 500px) and (orientation: landscape) {
+  main { padding-bottom: 90px !important; }
+  .now-playing.show .np-progress-wrap { display: none; }
+}
