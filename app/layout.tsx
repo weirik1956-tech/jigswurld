@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import './globals.css'
 import { PlayerProvider } from './player-context'
+   import Footer from './components/Footer'
 
 export const metadata: Metadata = {
   title: "JIG'SWurlD — Where Artists Get Heard, Not Buried.",
@@ -19,8 +20,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
+      
       <body>
         <PlayerProvider>{children}</PlayerProvider>
+        <Footer />
       </body>
     </html>
   )

@@ -22,6 +22,8 @@ export default function LoginPage() {
   const [role, setRole] = useState<'artist' | 'listener'>('artist')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('') // NEW
+  const [agreed, setAgreed] = useState(false) // NEW
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -49,6 +51,18 @@ export default function LoginPage() {
 
     try {
       if (mode === 'signup') {
+        // Security Checks
+        if (password !== confirmPassword) {
+          setMessage('Passwords do not match.')
+          setLoading(false)
+          return
+        }
+        if (!agreed) {
+          setMessage('You must agree to the Terms & Privacy Policy.')
+          setLoading(false)
+          return
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -69,7 +83,6 @@ export default function LoginPage() {
         })
 
         if (error) throw error
-
         await routeAfterAuth(data.user.id)
       }
     } catch (err: any) {
@@ -110,76 +123,58 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
           {mode === 'signup' && (
             <>
-              <input
-                type="text"
-                placeholder="Full name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                style={inputStyle}
-              />
-
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'artist' | 'listener')}
-                style={inputStyle}
-              >
+              <input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required style={inputStyle} />
+              <select value={role} onChange={(e) => setRole(e.target.value as 'artist' | 'listener')} style={inputStyle}>
                 <option value="artist">I am an Artist</option>
                 <option value="listener">I am a Listener</option>
               </select>
             </>
           )}
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={inputStyle}
-          />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            style={inputStyle}
-          />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} style={inputStyle} />
 
-          <div style={{ textAlign: 'right', marginTop: 6 }}>
-            <Link href="/reset" style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-              Forgot password?
-            </Link>
+          {mode === 'signup' && (
+            <input 
+              type="password" 
+              placeholder="Confirm Password" 
+              value={confirmPassword} 
+              onChange={(e) => setConfirmPassword(e.target.value)} 
+              required 
+              minLength={6} 
+              style={inputStyle} 
+            />
+          )}
+
+          <div style={{ textAlign: 'right', marginTop: -4 }}>
+            <Link href="/reset" style={{ fontSize: 12, color: 'var(--text-dim)' }}>Forgot password?</Link>
           </div>
 
-          <button
-            disabled={loading}
-            className="btn btn-primary"
-            style={{ justifyContent: 'center' }}
-          >
+          {mode === 'signup' && (
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12, color: 'var(--text-dim)', cursor: 'pointer', lineHeight: 1.4 }}>
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 2 }} required />
+              <span>
+                I agree to the{' '}
+                <Link href="/terms" target="_blank" style={{ color: 'var(--yellow)' }}>Terms & Conditions</Link>
+                {' '}and{' '}
+                <Link href="/privacy" target="_blank" style={{ color: 'var(--yellow)' }}>Privacy Policy</Link>.
+              </span>
+            </label>
+          )}
+
+          <button disabled={loading || (mode === 'signup' && !agreed)} className="btn btn-primary" style={{ justifyContent: 'center', marginTop: 10 }}>
             {loading ? 'Loading...' : mode === 'login' ? 'Log In' : 'Create Account'}
           </button>
-
-          <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4, textAlign: 'center' }}>
-            By creating an account you agree to our{' '}
-            <Link href="/terms" style={{ color: 'var(--yellow)' }}>Terms & Conditions</Link>.
-          </p>
         </form>
 
-        {message && <p style={{ marginTop: 12, color: 'var(--pink)' }}>{message}</p>}
+        {message && <p style={{ marginTop: 12, color: 'var(--pink)', fontSize: 13 }}>{message}</p>}
 
         <div style={{ marginTop: 20 }}>
           {mode === 'login' ? (
-            <button className="btn btn-ghost" onClick={() => setMode('signup')}>
-              New here? Create an account
-            </button>
+            <button className="btn btn-ghost" onClick={() => setMode('signup')}>New here? Create an account</button>
           ) : (
-            <button className="btn btn-ghost" onClick={() => setMode('login')}>
-              Already have an account? Log in
-            </button>
+            <button className="btn btn-ghost" onClick={() => setMode('login')}>Already have an account? Log in</button>
           )}
         </div>
       </main>
