@@ -8,11 +8,13 @@ export default function ResetPage() {
   const [mode, setMode] = useState<'email' | 'sent' | 'password' | 'done'>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('') // NEW
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     async function check() {
+      // Supabase automatically logs the user in if they clicked a valid email link
       const { data: { session } } = await supabase.auth.getSession()
       if (session) setMode('password')
     }
@@ -25,22 +27,27 @@ export default function ResetPage() {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset`,
     })
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMode('sent')
-    }
+    // Always show the success message to prevent "email enumeration" attacks
+    setMode('sent')
     setLoading(false)
   }
 
   async function updatePassword() {
     setLoading(true)
     setMessage('')
+    
     if (password.length < 6) {
       setMessage('Password must be at least 6 characters.')
       setLoading(false)
       return
     }
+    
+    if (password !== confirmPassword) {
+      setMessage('Passwords do not match.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password })
     if (error) {
       setMessage(error.message)
@@ -83,7 +90,7 @@ export default function ResetPage() {
           {mode === 'email' && (
             <>
               <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}>
-                Enter your account email and we'll send you a secure reset link.
+                Enter your account email and we'll send you a secure, single-use reset link.
               </p>
               <input
                 type="email"
@@ -98,28 +105,34 @@ export default function ResetPage() {
                 onClick={sendReset}
                 disabled={loading}
               >
-                {loading ? 'Sending...' : 'Send reset link'}
+                {loading ? 'Sending...' : 'Send secure reset link'}
               </button>
             </>
           )}
 
           {mode === 'sent' && (
             <div className="locked-note" style={{ marginTop: 10 }}>
-              📬 Check your inbox! We sent a reset link to <b>{email}</b>. Click it to set a new
-              password. (Check spam too.)
+              📬 Check your inbox! If an account exists for <b>{email}</b>, we've sent a secure link. Click it to set a new password. (Check spam too.)
             </div>
           )}
 
           {mode === 'password' && (
             <>
               <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}>
-                You're verified ✅ — choose a new password below.
+                Your identity is verified via the secure email token ✅ Choose a new password.
               </p>
               <input
                 type="password"
                 placeholder="New password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                style={{ ...inputStyle, marginBottom: 12 }}
+              />
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 style={inputStyle}
               />
               <button
@@ -135,7 +148,7 @@ export default function ResetPage() {
 
           {mode === 'done' && (
             <div className="locked-note" style={{ marginTop: 10 }}>
-              🎉 Password updated!{' '}
+              🎉 Password updated securely!{' '}
               <Link href="/login" style={{ color: 'var(--yellow)' }}>Log in now</Link>.
             </div>
           )}
