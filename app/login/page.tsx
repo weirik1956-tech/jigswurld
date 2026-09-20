@@ -149,6 +149,12 @@ export default function LoginPage() {
             style={inputStyle}
           />
 
+          <div style={{ textAlign: 'right', marginTop: 6 }}>
+            <Link href="/reset" style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              Forgot password?
+            </Link>
+          </div>
+
           <button
             disabled={loading}
             className="btn btn-primary"
@@ -156,6 +162,11 @@ export default function LoginPage() {
           >
             {loading ? 'Loading...' : mode === 'login' ? 'Log In' : 'Create Account'}
           </button>
+
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4, textAlign: 'center' }}>
+            By creating an account you agree to our{' '}
+            <Link href="/terms" style={{ color: 'var(--yellow)' }}>Terms & Conditions</Link>.
+          </p>
         </form>
 
         {message && <p style={{ marginTop: 12, color: 'var(--pink)' }}>{message}</p>}
