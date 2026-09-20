@@ -100,7 +100,7 @@ export default function DashboardPage() {
     router.replace('/login')
   }
     async function shareTrack(t: Track) {
-    const url = `https://jigswurld-xw5l.vercel.app/discover?track=${t.id}`
+    const url = `https://jigswurld-xw5l.vercel.app/track/${t.id}`
     const text = `🎧 "${t.title}" by ${profile?.full_name} on JIG'SWurlD`
 
     if (navigator.share) {

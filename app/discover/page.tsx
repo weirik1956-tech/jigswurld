@@ -164,7 +164,7 @@ export default function DiscoverPage() {
   }
 
   async function shareTrack(t: Track) {
-    const url = `https://jigswurld-xw5l.vercel.app/discover?track=${t.id}`
+    const url = `https://jigswurld-xw5l.vercel.app/track/${t.id}`
     const text = `🎧 "${t.title}" by ${t.artist_name} on JIG'SWurlD`
 
     if (navigator.share) {
@@ -294,8 +294,16 @@ export default function DiscoverPage() {
                         </svg>
                       </div>
                     </div>
-                    <div className="info">
-                      <h5>{t.title}</h5>
+                     <div className="info">
+                      <h5>
+                        <Link
+                          href={'/track/' + t.id}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: 'inherit' }}
+                        >
+                          {t.title}
+                        </Link>
+                      </h5>
                       <p>
                         <Link
                           href={'/artist/' + t.artist_id}

@@ -12,11 +12,10 @@ type Track = {
   cover_path: string | null
   artist_id: string
   artist_name?: string
-   lyrics?: string | null
+  lyrics?: string | null
   lyrics_sync?: string | null
   genre?: string | null
   created_at?: string
-
 }
 
 type PlayerState = {
@@ -29,6 +28,7 @@ type PlayerState = {
   toggle: () => void
   stop: () => void
   seek: (e: MouseEvent<HTMLDivElement>) => void
+  seekTo: (t: number) => void
   next: () => void
   prev: () => void
   openFull: () => void
@@ -203,13 +203,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (idx > -1) playTrack(q[(idx - 1 + q.length) % q.length])
   }
 
-    function seek(e: MouseEvent<HTMLDivElement>) {
+  function seek(e: MouseEvent<HTMLDivElement>) {
     if (!audioRef.current || !duration) return
     const rect = e.currentTarget.getBoundingClientRect()
     const pct = (e.clientX - rect.left) / rect.width
     audioRef.current.currentTime = pct * duration
   }
-  // ↑ seek ends here
 
   function seekTo(t: number) {
     if (!audioRef.current) return
@@ -219,13 +218,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPlaying(true)
     }
   }
-  // ↑ paste it right here
 
   async function shareCurrent() {
-    // ... existing code continues
-  async function shareCurrent() {
     if (!current) return
-    const url = `https://jigswurld-xw5l.vercel.app/discover?track=${current.id}`
+    const url = `https://jigswurld-xw5l.vercel.app/track/${current.id}`
     const text = `🎧 "${current.title}" by ${current.artist_name} on JIG'SWurlD`
     if (navigator.share) {
       try {
@@ -254,6 +250,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         toggle,
         stop,
         seek,
+        seekTo,
         next,
         prev,
         openFull: () => setExpanded(true),
@@ -427,7 +424,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-         
+          {current.lyrics_sync ? (
+            <div style={{ padding: '10px 28px 20px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Lyrics</div>
+              <SyncedLyrics raw={current.lyrics_sync} time={time} onSeek={seekTo} />
+            </div>
+          ) : current.lyrics ? (
+            <div style={{ padding: '10px 28px 20px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Lyrics</div>
+              <pre
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontSize: 13.5,
+                  lineHeight: 1.7,
+                  color: 'var(--text-dim)',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
+                {current.lyrics}
+              </pre>
+            </div>
+          ) : null}
+
           <div style={{ padding: '0 28px 60px', fontSize: 12, color: 'var(--text-dim)' }}>
             About this track — Genre: {current.genre || 'Other'} · Released: {releaseDate(current.created_at)} · Artist: {current.artist_name}
           </div>
@@ -435,5 +453,4 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       )}
     </PlayerContext.Provider>
   )
-}
 }
