@@ -119,6 +119,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0)
   const [expanded, setExpanded] = useState(false)
   const [tipNote, setTipNote] = useState('')
+    const [tipBusy, setTipBusy] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const queueRef = useRef<Track[]>([])
@@ -238,6 +239,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function tipArtist(amount: number) {
+    if (!current) return
+    setTipBusy(true)
+    setTipNote('')
+    try {
+      const res = await fetch('/api/tip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          artistName: current.artist_name || 'the artist',
+          trackTitle: current.title,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setTipNote(data.error || 'Could not start checkout.')
+      }
+    } catch {
+      setTipNote('Network error — try again.')
+    } finally {
+      setTipBusy(false)
+    }
+  }
   return (
     <PlayerContext.Provider
       value={{
@@ -400,12 +427,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             <div style={{ border: '1px solid var(--line)', borderRadius: 14, padding: 14, background: 'var(--bg-alt)' }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Support the artist</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {['$1', '$5', '$10'].map((v) => (
+                                {[1, 5, 10].map((v) => (
                   <button
                     key={v}
-                    onClick={() =>
-                      setTipNote('💸 Real card tipping lands in the next update — Stripe is being wired right now!')
-                    }
+                    disabled={tipBusy}
+                    onClick={() => tipArtist(v)}
                     style={{
                       padding: '8px 18px',
                       borderRadius: 999,
@@ -414,9 +440,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                       color: 'var(--yellow)',
                       fontWeight: 700,
                       cursor: 'pointer',
+                      opacity: tipBusy ? 0.5 : 1,
                     }}
                   >
-                    Tip {v}
+                    {tipBusy ? 'Opening...' : `Tip $${v}`}
                   </button>
                 ))}
               </div>
