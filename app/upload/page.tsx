@@ -216,6 +216,7 @@ export default function UploadPage() {
               <option value="Afrobeats">Afrobeats</option>
               <option value="Gospel">Gospel</option>
               <option value="Pop">Pop</option>
+              <option value="Album">Album</option>
               <option value="Other">Other</option>
             </select>
           </label>
