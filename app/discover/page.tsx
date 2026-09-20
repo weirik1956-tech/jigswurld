@@ -11,6 +11,7 @@ type Track = {
   audio_path: string
   cover_path: string | null
   lyrics: string | null
+  genre: string | null
   artist_id: string
   artist_name?: string
 }
@@ -21,6 +22,8 @@ const FALLBACKS = [
   'linear-gradient(135deg,#ffc845,#0e1122)',
   'linear-gradient(135deg,#ff4d6d,#37e6c4)',
 ]
+
+const GENRES = ['All', 'Hip-Hop', 'R&B', 'Afrobeats', 'Gospel', 'Pop', 'Other']
 
 function storageUrl(bucket: string, path: string) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`
@@ -36,6 +39,8 @@ export default function DiscoverPage() {
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({})
   const [followCounts, setFollowCounts] = useState<Record<string, number>>({})
   const [lyricsOpen, setLyricsOpen] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState('All')
 
   useEffect(() => {
     async function run() {
@@ -157,7 +162,8 @@ export default function DiscoverPage() {
       setFollowCounts({ ...followCounts, [artistId]: (followCounts[artistId] || 0) + 1 })
     }
   }
-    async function shareTrack(t: Track) {
+
+  async function shareTrack(t: Track) {
     const url = `https://jigswurld-xw5l.vercel.app/discover?track=${t.id}`
     const text = `🎧 "${t.title}" by ${t.artist_name} on JIG'SWurlD`
 
@@ -166,7 +172,7 @@ export default function DiscoverPage() {
         await navigator.share({ title: "JIG'SWurlD", text, url })
         return
       } catch {
-        // user closed the share sheet — fall back to copy
+        // closed share sheet — copy instead
       }
     }
 
@@ -177,6 +183,16 @@ export default function DiscoverPage() {
       setMessage(url)
     }
   }
+
+  const q = search.toLowerCase().trim()
+  const filtered = tracks.filter((t) => {
+    const matchSearch =
+      !q ||
+      t.title.toLowerCase().includes(q) ||
+      (t.artist_name || '').toLowerCase().includes(q)
+    const matchGenre = selectedGenre === 'All' || (t.genre || 'Other') === selectedGenre
+    return matchSearch && matchGenre
+  })
 
   return (
     <>
@@ -200,24 +216,67 @@ export default function DiscoverPage() {
             <div className="section-head">
               <div className="eyebrow">Discovery engine</div>
               <h2>New releases, before they blow up.</h2>
-              <p>Music keeps playing while you browse the whole site.</p>
+              <p>Search, filter by genre, and keep the music playing.</p>
             </div>
 
             {message && <p style={{ color: 'var(--pink)', marginBottom: 16 }}>{message}</p>}
+
+            <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Search songs or artists..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: 200,
+                  padding: '12px 16px',
+                  borderRadius: 999,
+                  border: '1px solid var(--line)',
+                  background: 'var(--bg-alt)',
+                  color: 'var(--text)',
+                  fontSize: 14,
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {GENRES.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setSelectedGenre(g)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 999,
+                      border: '1px solid var(--line)',
+                      background: selectedGenre === g ? 'var(--pink)' : 'transparent',
+                      color: selectedGenre === g ? 'var(--bg)' : 'var(--text-dim)',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {tracks.length === 0 ? (
               <div className="locked-note">
                 No published tracks yet. Upload one from the{' '}
                 <Link href="/upload" style={{ color: 'var(--yellow)' }}>upload page</Link>.
               </div>
+            ) : filtered.length === 0 ? (
+              <div className="locked-note">
+                Nothing matches your search. Try another word or genre!
+              </div>
             ) : (
               <div className="discovery-grid">
-                {tracks.map((t, i) => (
-                      <div
+                {filtered.map((t, i) => (
+                  <div
                     key={t.id}
                     id={'track-' + t.id}
                     className={'song-card' + (player.current?.id === t.id ? ' playing' : '')}
-                    onClick={() => player.playTrack(t, tracks)}
+                    onClick={() => player.playTrack(t, filtered)}
                     style={{ cursor: 'pointer' }}
                   >
                     <div className="cover" style={{ background: FALLBACKS[i % FALLBACKS.length] }}>
@@ -235,7 +294,7 @@ export default function DiscoverPage() {
                         </svg>
                       </div>
                     </div>
-                                       <div className="info">
+                    <div className="info">
                       <h5>{t.title}</h5>
                       <p>
                         <Link
@@ -262,7 +321,7 @@ export default function DiscoverPage() {
                         <button onClick={() => setLyricsOpen(lyricsOpen === t.id ? null : t.id)}>
                           {lyricsOpen === t.id ? 'Hide lyrics' : '♪ Lyrics'}
                         </button>
-                                                <button onClick={() => shareTrack(t)}>Share</button>
+                        <button onClick={() => shareTrack(t)}>Share</button>
                       </div>
                       {lyricsOpen === t.id && (
                         <pre
