@@ -235,9 +235,17 @@ export default function DiscoverPage() {
                         </svg>
                       </div>
                     </div>
-                    <div className="info">
+                                       <div className="info">
                       <h5>{t.title}</h5>
-                      <p>{t.artist_name}</p>
+                      <p>
+                        <Link
+                          href={'/artist/' + t.artist_id}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: 'inherit' }}
+                        >
+                          {t.artist_name}
+                        </Link>
+                      </p>
                       <div className="card-actions" onClick={(e) => e.stopPropagation()}>
                         <button
                           className={myLikes.includes(t.id) ? 'active' : ''}

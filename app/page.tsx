@@ -45,10 +45,10 @@ export default function Home() {
                   Explore the catalog
                 </Link>
               </div>
-              <div className="hero-stats">
-                <div><span className="num">0%</span><span className="label">Master ownership lost</span></div>
-                <div><span className="num">100%</span><span className="label">Tips go to the artist</span></div>
-                <div><span className="num">&lt;5 min</span><span className="label">To release a track</span></div>
+                          <div className="hero-stats">
+                <div><span className="num">0%</span><span className="label">Master ownership lost — you keep your masters</span></div>
+                <div><span className="num">0%</span><span className="label">Platform fee on tips (Stripe fees apply)</span></div>
+                <div><span className="num">Instant</span><span className="label">Releases go live the moment you upload</span></div>
               </div>
             </div>
 
