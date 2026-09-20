@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { usePlayer } from '../player-context'
+// import { usePlayer } from '../../player-context'
+import { usePlayer } from '@/app/player-context'
 
 type Track = {
   id: string
