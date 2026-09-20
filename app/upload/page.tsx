@@ -20,6 +20,7 @@ export default function UploadPage() {
   const [title, setTitle] = useState('')
   const [genre, setGenre] = useState('Hip-Hop')
   const [lyrics, setLyrics] = useState('')
+    const [lyricsSync, setLyricsSync] = useState('')
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
@@ -122,6 +123,7 @@ export default function UploadPage() {
           audio_path: audioPath,
           cover_path: coverPath,
           lyrics: lyrics.trim() || null,
+          lyrics_sync: lyricsSync.trim() || null,
           is_published: true,
         })
 
@@ -226,6 +228,15 @@ export default function UploadPage() {
             value={lyrics}
             onChange={(e) => setLyrics(e.target.value)}
             rows={5}
+            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: 13 }}
+          />
+
+          
+          <textarea
+            placeholder={'Synced lyrics (optional) — one line each:\n00:00 Sitting down\n00:05 Watching\n00:10 Playing round the field'}
+            value={lyricsSync}
+            onChange={(e) => setLyricsSync(e.target.value)}
+            rows={4}
             style={{ ...inputStyle, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: 13 }}
           />
 
