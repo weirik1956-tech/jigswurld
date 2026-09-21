@@ -19,22 +19,17 @@ export default function ResetPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Check if Supabase has already created a recovery session
+  /*
+   * IMPORTANT:
+   * We DO NOT use getSession() here.
+   *
+   * A normal logged-in session does NOT mean the user is
+   * allowed to reset their password.
+   *
+   * We only show the new-password form when Supabase
+   * confirms that a PASSWORD_RECOVERY event occurred.
+   */
   useEffect(() => {
-    async function checkRecoverySession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (session) {
-        setMode('password')
-      }
-    }
-
-    checkRecoverySession()
-
-    // Listen for authentication events.
-    // Supabase fires PASSWORD_RECOVERY after a valid reset link is opened.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -49,12 +44,14 @@ export default function ResetPage() {
     }
   }, [])
 
-  // Password strength
+  /*
+   * Password strength
+   */
   const passwordStrength = useMemo(() => {
     let score = 0
 
-    if (password.length >= 6) score++
-    if (password.length >= 10) score++
+    if (password.length >= 8) score++
+    if (password.length >= 12) score++
     if (/[A-Z]/.test(password)) score++
     if (/[0-9]/.test(password)) score++
     if (/[^A-Za-z0-9]/.test(password)) score++
@@ -73,7 +70,7 @@ export default function ResetPage() {
       }
     }
 
-    if (score === 3 || score === 4) {
+    if (score <= 4) {
       return {
         score,
         label: 'Good',
@@ -94,6 +91,9 @@ export default function ResetPage() {
     confirmPassword.length > 0 &&
     password === confirmPassword
 
+  /*
+   * SEND PASSWORD RESET EMAIL
+   */
   async function sendReset() {
     if (!emailIsValid) {
       setMessage('Please enter a valid email address.')
@@ -104,40 +104,47 @@ export default function ResetPage() {
     setMessage('')
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        {
-          redirectTo: `${window.location.origin}/reset`,
-        }
-      )
+      const { error } =
+        await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          {
+            redirectTo: `${window.location.origin}/reset`,
+          }
+        )
 
       /*
-       * We intentionally do not tell the user whether the email
-       * exists in the database.
+       * We intentionally show the same message whether
+       * the email exists or not.
        *
-       * This prevents email/account enumeration.
+       * This prevents account/email enumeration.
        */
-
       if (error) {
         console.error('Password reset error:', error)
       }
 
       setMode('sent')
     } catch (error) {
-      console.error(error)
+      console.error('Password reset error:', error)
 
-      // Still show the neutral message.
+      /*
+       * Keep the response neutral.
+       */
       setMode('sent')
     } finally {
       setLoading(false)
     }
   }
 
+  /*
+   * UPDATE PASSWORD
+   */
   async function updatePassword() {
     setMessage('')
 
     if (password.length < 8) {
-      setMessage('Your password must be at least 8 characters.')
+      setMessage(
+        'Your password must be at least 8 characters.'
+      )
       return
     }
 
@@ -158,13 +165,12 @@ export default function ResetPage() {
         return
       }
 
-      setMode('done')
-
-      // Clear password fields after successful update.
       setPassword('')
       setConfirmPassword('')
+      setMode('done')
     } catch (error) {
-      console.error(error)
+      console.error('Password update error:', error)
+
       setMessage(
         'Something went wrong. Please try the reset link again.'
       )
@@ -200,6 +206,7 @@ export default function ResetPage() {
 
   return (
     <>
+      {/* HEADER */}
       <header>
         <div className="wrap">
           <nav>
@@ -208,7 +215,10 @@ export default function ResetPage() {
             </Link>
 
             <div className="nav-cta">
-              <Link href="/login" className="btn btn-ghost">
+              <Link
+                href="/login"
+                className="btn btn-ghost"
+              >
                 Log in
               </Link>
             </div>
@@ -225,17 +235,18 @@ export default function ResetPage() {
             padding: '0 20px',
           }}
         >
-          {/* Main card */}
+          {/* CARD */}
           <div
             style={{
               border: '1px solid var(--line)',
               borderRadius: 18,
               padding: '32px',
               background: 'var(--bg)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+              boxShadow:
+                '0 20px 60px rgba(0,0,0,0.15)',
             }}
           >
-            {/* Logo / icon */}
+            {/* ICON */}
             <div
               style={{
                 width: 52,
@@ -253,9 +264,14 @@ export default function ResetPage() {
               🔐
             </div>
 
-            <div className="eyebrow">Account recovery</div>
+            <div className="eyebrow">
+              Account recovery
+            </div>
 
-            {/* STEP 1 */}
+            {/* ================================================= */}
+            {/* STEP 1 — ENTER EMAIL */}
+            {/* ================================================= */}
+
             {mode === 'email' && (
               <>
                 <h1 style={{ marginBottom: 8 }}>
@@ -269,9 +285,9 @@ export default function ResetPage() {
                     marginBottom: 24,
                   }}
                 >
-                  No worries. Enter the email address connected to
-                  your JIG'SWurlD account and we'll send you a secure
-                  password reset link.
+                  Enter the email address connected to
+                  your JIG'SWurlD account and we'll send
+                  you a secure password reset link.
                 </p>
 
                 <label
@@ -295,7 +311,11 @@ export default function ResetPage() {
                     setMessage('')
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && emailIsValid) {
+                    if (
+                      e.key === 'Enter' &&
+                      emailIsValid &&
+                      !loading
+                    ) {
                       sendReset()
                     }
                   }}
@@ -321,10 +341,14 @@ export default function ResetPage() {
                     marginTop: 16,
                     justifyContent: 'center',
                     opacity:
-                      loading || !emailIsValid ? 0.6 : 1,
+                      loading || !emailIsValid
+                        ? 0.6
+                        : 1,
                   }}
                   onClick={sendReset}
-                  disabled={loading || !emailIsValid}
+                  disabled={
+                    loading || !emailIsValid
+                  }
                 >
                   {loading
                     ? 'Sending...'
@@ -351,9 +375,29 @@ export default function ResetPage() {
               </>
             )}
 
-            {/* STEP 2 */}
+            {/* ================================================= */}
+            {/* STEP 2 — EMAIL SENT */}
+            {/* ================================================= */}
+
             {mode === 'sent' && (
               <>
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--bg-alt)',
+                    border: '1px solid var(--line)',
+                    fontSize: 27,
+                    marginBottom: 20,
+                  }}
+                >
+                  📬
+                </div>
+
                 <h1 style={{ marginBottom: 10 }}>
                   Check your inbox
                 </h1>
@@ -362,15 +406,17 @@ export default function ResetPage() {
                   style={{
                     color: 'var(--text-dim)',
                     lineHeight: 1.6,
-                    marginBottom: 20,
+                    marginBottom: 18,
                   }}
                 >
-                  If an account exists for:
+                  If an account exists for this email,
+                  we've sent a secure password reset link
+                  to:
                 </p>
 
                 <div
                   style={{
-                    padding: '12px 14px',
+                    padding: '13px 14px',
                     borderRadius: 10,
                     background: 'var(--bg-alt)',
                     border: '1px solid var(--line)',
@@ -387,14 +433,28 @@ export default function ResetPage() {
                   className="locked-note"
                   style={{
                     lineHeight: 1.6,
-                    marginBottom: 20,
+                    marginBottom: 18,
                   }}
                 >
-                  📬 We've sent a secure password reset link.
+                  <strong>
+                    📩 We've sent your reset link.
+                  </strong>
+
                   <br />
                   <br />
-                  Open the email and click the button inside to
-                  continue.
+
+                  Open your email and click{' '}
+                  <strong>
+                    "Reset Password"
+                  </strong>{' '}
+                  to continue.
+
+                  <br />
+                  <br />
+
+                  You will only be able to create a new
+                  password after opening the secure link
+                  from your email.
                 </div>
 
                 <p
@@ -404,8 +464,9 @@ export default function ResetPage() {
                     lineHeight: 1.6,
                   }}
                 >
-                  Didn't receive it? Check your spam or junk folder.
-                  The reset link may also expire for security reasons.
+                  Didn't receive the email? Check your
+                  spam or junk folder. You can also try
+                  again after a few moments.
                 </p>
 
                 <button
@@ -425,9 +486,29 @@ export default function ResetPage() {
               </>
             )}
 
-            {/* STEP 3 */}
+            {/* ================================================= */}
+            {/* STEP 3 — NEW PASSWORD */}
+            {/* ================================================= */}
+
             {mode === 'password' && (
               <>
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--bg-alt)',
+                    border: '1px solid var(--line)',
+                    fontSize: 27,
+                    marginBottom: 20,
+                  }}
+                >
+                  🔓
+                </div>
+
                 <h1 style={{ marginBottom: 8 }}>
                   Create a new password
                 </h1>
@@ -439,11 +520,13 @@ export default function ResetPage() {
                     marginBottom: 24,
                   }}
                 >
-                  You're securely verified. Choose a new password
-                  for your JIG'SWurlD account.
+                  Your password reset link has been
+                  verified. You can now create a new
+                  password for your JIG'SWurlD account.
                 </p>
 
-                {/* New password */}
+                {/* NEW PASSWORD */}
+
                 <label
                   style={{
                     display: 'block',
@@ -455,9 +538,17 @@ export default function ResetPage() {
                   New password
                 </label>
 
-                <div style={{ position: 'relative' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                  }}
+                >
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={
+                      showPassword
+                        ? 'text'
+                        : 'password'
+                    }
                     placeholder="Enter a new password"
                     value={password}
                     autoComplete="new-password"
@@ -475,16 +566,25 @@ export default function ResetPage() {
                     type="button"
                     style={passwordButtonStyle}
                     onClick={() =>
-                      setShowPassword(!showPassword)
+                      setShowPassword(
+                        !showPassword
+                      )
                     }
                   >
-                    {showPassword ? 'Hide' : 'Show'}
+                    {showPassword
+                      ? 'Hide'
+                      : 'Show'}
                   </button>
                 </div>
 
-                {/* Strength */}
+                {/* PASSWORD STRENGTH */}
+
                 {password && (
-                  <div style={{ marginTop: 10 }}>
+                  <div
+                    style={{
+                      marginTop: 10,
+                    }}
+                  >
                     <div
                       style={{
                         display: 'flex',
@@ -492,37 +592,44 @@ export default function ResetPage() {
                         marginBottom: 6,
                       }}
                     >
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <div
-                          key={level}
-                          style={{
-                            height: 4,
-                            flex: 1,
-                            borderRadius: 5,
-                            background:
-                              level <= passwordStrength.score
-                                ? 'var(--accent)'
-                                : 'var(--line)',
-                          }}
-                        />
-                      ))}
+                      {[1, 2, 3, 4, 5].map(
+                        (level) => (
+                          <div
+                            key={level}
+                            style={{
+                              height: 4,
+                              flex: 1,
+                              borderRadius: 5,
+                              background:
+                                level <=
+                                passwordStrength.score
+                                  ? 'var(--accent)'
+                                  : 'var(--line)',
+                            }}
+                          />
+                        )
+                      )}
                     </div>
 
                     <div
                       style={{
                         fontSize: 12,
-                        color: 'var(--text-dim)',
+                        color:
+                          'var(--text-dim)',
                       }}
                     >
                       Password strength:{' '}
                       <strong>
-                        {passwordStrength.label}
+                        {
+                          passwordStrength.label
+                        }
                       </strong>
                     </div>
                   </div>
                 )}
 
-                {/* Confirm password */}
+                {/* CONFIRM PASSWORD */}
+
                 <label
                   style={{
                     display: 'block',
@@ -535,7 +642,11 @@ export default function ResetPage() {
                   Confirm new password
                 </label>
 
-                <div style={{ position: 'relative' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                  }}
+                >
                   <input
                     type={
                       showConfirmPassword
@@ -546,7 +657,9 @@ export default function ResetPage() {
                     value={confirmPassword}
                     autoComplete="new-password"
                     onChange={(e) => {
-                      setConfirmPassword(e.target.value)
+                      setConfirmPassword(
+                        e.target.value
+                      )
                       setMessage('')
                     }}
                     style={{
@@ -564,7 +677,9 @@ export default function ResetPage() {
                       )
                     }
                   >
-                    {showConfirmPassword ? 'Hide' : 'Show'}
+                    {showConfirmPassword
+                      ? 'Hide'
+                      : 'Show'}
                   </button>
                 </div>
 
@@ -630,13 +745,16 @@ export default function ResetPage() {
                     marginTop: 18,
                   }}
                 >
-                  🔒 Your password is securely handled by
-                  Supabase authentication.
+                  🔒 Your password is securely handled
+                  by Supabase authentication.
                 </p>
               </>
             )}
 
-            {/* SUCCESS */}
+            {/* ================================================= */}
+            {/* STEP 4 — DONE */}
+            {/* ================================================= */}
+
             {mode === 'done' && (
               <>
                 <div
@@ -667,9 +785,10 @@ export default function ResetPage() {
                     marginBottom: 24,
                   }}
                 >
-                  Your password has been changed successfully.
-                  You can now sign in to your JIG'SWurlD account
-                  using your new password.
+                  Your password has been changed
+                  successfully. You can now sign in to
+                  your JIG'SWurlD account using your new
+                  password.
                 </p>
 
                 <Link
@@ -687,7 +806,8 @@ export default function ResetPage() {
             )}
           </div>
 
-          {/* Security note */}
+          {/* SECURITY MESSAGE */}
+
           {mode !== 'done' && (
             <p
               style={{
@@ -698,8 +818,8 @@ export default function ResetPage() {
                 lineHeight: 1.6,
               }}
             >
-              🔐 JIG'SWurlD will never ask you for your password
-              through email.
+              🔐 JIG'SWurlD will never ask you for
+              your password through email.
             </p>
           )}
         </div>
