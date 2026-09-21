@@ -18,9 +18,10 @@ export default function UploadPage() {
 
   const [allowed, setAllowed] = useState(false)
   const [title, setTitle] = useState('')
+  const [albumName, setAlbumName] = useState('')
   const [genre, setGenre] = useState('Hip-Hop')
   const [lyrics, setLyrics] = useState('')
-    const [lyricsSync, setLyricsSync] = useState('')
+  const [lyricsSync, setLyricsSync] = useState('')
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
@@ -106,10 +107,33 @@ export default function UploadPage() {
       const audioPath = await uploadToBucket('tracks', audioFile, userId)
 
       let coverPath: string | null = null
-
       if (coverFile) {
         coverPath = await uploadToBucket('covers', coverFile, userId)
       }
+
+      // --- ALBUM LOGIC ---
+      let albumId: string | null = null
+      if (albumName.trim()) {
+        const { data: existingAlbum } = await supabase
+          .from('albums')
+          .select('id')
+          .eq('artist_id', userId)
+          .eq('title', albumName.trim())
+          .maybeSingle()
+
+        if (existingAlbum) {
+          albumId = existingAlbum.id
+        } else {
+          const { data: newAlbum, error: albumError } = await supabase
+            .from('albums')
+            .insert({ artist_id: userId, title: albumName.trim() })
+            .select()
+            .single()
+          if (albumError) throw albumError
+          albumId = newAlbum.id
+        }
+      }
+      // -------------------
 
       const slug = `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`
 
@@ -124,6 +148,7 @@ export default function UploadPage() {
           cover_path: coverPath,
           lyrics: lyrics.trim() || null,
           lyrics_sync: lyricsSync.trim() || null,
+          album_id: albumId,
           is_published: true,
         })
 
@@ -204,6 +229,14 @@ export default function UploadPage() {
             style={inputStyle}
           />
 
+          <input
+            type="text"
+            placeholder="Album or EP name (optional - leave blank for single)"
+            value={albumName}
+            onChange={(e) => setAlbumName(e.target.value)}
+            style={inputStyle}
+          />
+
           <label style={{ display: 'block' }}>
             <span style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'var(--text-dim)' }}>
               Genre
@@ -218,7 +251,6 @@ export default function UploadPage() {
               <option value="Afrobeats">Afrobeats</option>
               <option value="Gospel">Gospel</option>
               <option value="Pop">Pop</option>
-              <option value="Album">Album</option>
               <option value="Other">Other</option>
             </select>
           </label>
@@ -231,7 +263,6 @@ export default function UploadPage() {
             style={{ ...inputStyle, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: 13 }}
           />
 
-          
           <textarea
             placeholder={'Synced lyrics (optional) — one line each:\n00:00 Sitting down\n00:05 Watching\n00:10 Playing round the field'}
             value={lyricsSync}
