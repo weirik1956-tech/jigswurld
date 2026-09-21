@@ -41,6 +41,10 @@ export default function DiscoverPage() {
   const [lyricsOpen, setLyricsOpen] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('All')
+  
+  // NEW: Playlist Modal States
+  const [playlistModalTrack, setPlaylistModalTrack] = useState<Track | null>(null)
+  const [userPlaylists, setUserPlaylists] = useState<any[]>([])
 
   useEffect(() => {
     async function run() {
@@ -172,24 +176,50 @@ export default function DiscoverPage() {
         await navigator.share({ title: "JIG'SWurlD", text, url })
         return
       } catch {
-        // closed share sheet — copy instead
+        // closed share sheet
       }
     }
-
     try {
       await navigator.clipboard.writeText(`${text} ${url}`)
-      setMessage('Share link copied — paste it anywhere!')
+      setMessage('Share link copied!')
     } catch {
       setMessage(url)
     }
   }
 
+  // NEW: Playlist Functions
+  async function openAddToPlaylist(track: Track) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setMessage('Log in to add to playlists.')
+      return
+    }
+    setPlaylistModalTrack(track)
+    const { data } = await supabase
+      .from('playlists')
+      .select('id, name')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+    setUserPlaylists(data || [])
+  }
+
+  async function confirmAddToPlaylist(playlistId: string, trackId: string) {
+    const { error } = await supabase
+      .from('playlist_tracks')
+      .insert({ playlist_id: playlistId, track_id: trackId })
+    
+    if (error) {
+      setMessage('Already in playlist or error occurred.')
+    } else {
+      setMessage('Added to playlist! 🎵')
+      setTimeout(() => setMessage(''), 2000)
+    }
+    setPlaylistModalTrack(null)
+  }
+
   const q = search.toLowerCase().trim()
   const filtered = tracks.filter((t) => {
-    const matchSearch =
-      !q ||
-      t.title.toLowerCase().includes(q) ||
-      (t.artist_name || '').toLowerCase().includes(q)
+    const matchSearch = !q || t.title.toLowerCase().includes(q) || (t.artist_name || '').toLowerCase().includes(q)
     const matchGenre = selectedGenre === 'All' || (t.genre || 'Other') === selectedGenre
     return matchSearch && matchGenre
   })
@@ -219,7 +249,7 @@ export default function DiscoverPage() {
               <p>Search, filter by genre, and keep the music playing.</p>
             </div>
 
-            {message && <p style={{ color: 'var(--pink)', marginBottom: 16 }}>{message}</p>}
+            {message && <p style={{ color: 'var(--pink)', marginBottom: 16, fontWeight: 600 }}>{message}</p>}
 
             <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
               <input
@@ -294,7 +324,7 @@ export default function DiscoverPage() {
                         </svg>
                       </div>
                     </div>
-                     <div className="info">
+                    <div className="info">
                       <h5>
                         <Link
                           href={'/track/' + t.id}
@@ -314,34 +344,21 @@ export default function DiscoverPage() {
                         </Link>
                       </p>
                       <div className="card-actions" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className={myLikes.includes(t.id) ? 'active' : ''}
-                          onClick={() => toggleLike(t.id)}
-                        >
+                        <button className={myLikes.includes(t.id) ? 'active' : ''} onClick={() => toggleLike(t.id)}>
                           ♥ {likeCounts[t.id] || 0}
                         </button>
-                        <button
-                          className={'follow' + (myFollows.includes(t.artist_id) ? ' active' : '')}
-                          onClick={() => toggleFollow(t.artist_id)}
-                        >
+                        <button className={'follow' + (myFollows.includes(t.artist_id) ? ' active' : '')} onClick={() => toggleFollow(t.artist_id)}>
                           {myFollows.includes(t.artist_id) ? 'Following' : 'Follow'} · {followCounts[t.artist_id] || 0}
                         </button>
+                        {/* NEW: Add to Playlist Button */}
+                        <button onClick={() => openAddToPlaylist(t)}>+ Playlist</button>
                         <button onClick={() => setLyricsOpen(lyricsOpen === t.id ? null : t.id)}>
                           {lyricsOpen === t.id ? 'Hide lyrics' : '♪ Lyrics'}
                         </button>
                         <button onClick={() => shareTrack(t)}>Share</button>
                       </div>
                       {lyricsOpen === t.id && (
-                        <pre
-                          style={{
-                            whiteSpace: 'pre-wrap',
-                            marginTop: 10,
-                            fontSize: 12.5,
-                            lineHeight: 1.6,
-                            color: 'var(--text-dim)',
-                            fontFamily: 'var(--font-mono)',
-                          }}
-                        >
+                        <pre style={{ whiteSpace: 'pre-wrap', marginTop: 10, fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                           {t.lyrics || 'No lyrics uploaded for this track.'}
                         </pre>
                       )}
@@ -353,6 +370,49 @@ export default function DiscoverPage() {
           </div>
         </section>
       </main>
+
+      {/* NEW: Playlist Modal Popup */}
+      {playlistModalTrack && (
+        <div 
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+          onClick={() => setPlaylistModalTrack(null)}
+        >
+          <div 
+            style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 16, padding: 24, width: '90%', maxWidth: 400 }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: 16, fontSize: 16 }}>Add "{playlistModalTrack.title}" to...</h3>
+            {userPlaylists.length === 0 ? (
+              <p style={{ color: 'var(--text-dim)', marginBottom: 16 }}>
+                No playlists yet. Go to <Link href="/library" style={{ color: 'var(--yellow)' }}>Library</Link> to create one.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
+                {userPlaylists.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => confirmAddToPlaylist(p.id, playlistModalTrack.id)}
+                    style={{
+                      padding: 12, borderRadius: 8, border: '1px solid var(--line)',
+                      background: 'var(--bg-alt)', color: 'var(--text)', textAlign: 'left',
+                      cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{p.name}</span>
+                    <span style={{ color: 'var(--mint)', fontSize: 13 }}>+ Add</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setPlaylistModalTrack(null)}
+              style={{ marginTop: 16, width: '100%', padding: 10, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text-dim)', borderRadius: 8, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
