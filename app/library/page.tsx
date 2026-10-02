@@ -6,20 +6,18 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePlayer } from '@/app/player-context'
 
+type Track = {
+  id: string
+  title: string
+  artist_name: string
+  cover_path: string | null
+}
+
 type Playlist = {
   id: string
   name: string
   description: string | null
   track_count: number
-}
-
-type Track = {
-  id: string
-  title: string
-  artist_name: string
-  artist_id: string
-  audio_path: string
-  cover_path: string | null
 }
 
 export default function LibraryPage() {
@@ -60,7 +58,7 @@ export default function LibraryPage() {
       console.error('Library load error:', err)
       setError("Couldn't load your library. Please try refreshing.")
     } finally {
-      setLoading(false) // <-- This guarantees loading stops, even on error!
+      setLoading(false)
     }
   }
 
@@ -81,43 +79,91 @@ export default function LibraryPage() {
   }
 
   async function loadLikedTracks(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get the liked track IDs
+    const { data: likes, error } = await supabase
       .from('likes')
-      .select('track_id, tracks(id, title, audio_path, cover_path, artist_id, profiles(full_name))')
+      .select('track_id')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10)
 
     if (error) throw error
+    if (!likes || likes.length === 0) {
+      setLikedTracks([])
+      return
+    }
 
-    const mapped = (data || []).map((item: any) => ({
-      id: item.tracks.id,
-      title: item.tracks.title,
-      audio_path: item.tracks.audio_path,
-      artist_id: item.tracks.artist_id,
-      cover_path: item.tracks.cover_path,
-      artist_name: item.tracks.profiles?.full_name || 'Unknown Artist'
+    // Step 2: Get the track details
+    const trackIds = likes.map(l => l.track_id)
+    const { data: tracks } = await supabase
+      .from('tracks')
+      .select('id, title, cover_path, artist_id')
+      .in('id', trackIds)
+
+    if (!tracks || tracks.length === 0) {
+      setLikedTracks([])
+      return
+    }
+
+    // Step 3: Get artist names
+    const artistIds = Array.from(new Set(tracks.map(t => t.artist_id)))
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', artistIds)
+
+    const names = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name]))
+
+    const mapped: Track[] = tracks.map(t => ({
+      id: t.id,
+      title: t.title,
+      cover_path: t.cover_path,
+      artist_name: names[t.artist_id] || 'Unknown Artist'
     }))
     setLikedTracks(mapped)
   }
 
   async function loadRecentPlays(userId: string) {
-    const { data, error } = await supabase
+    // Step 1: Get the played track IDs
+    const { data: plays, error } = await supabase
       .from('plays')
-      .select('track_id, created_at, tracks(id, title, audio_path, cover_path, artist_id, profiles(full_name))')
+      .select('track_id')
       .eq('listener_id', userId)
       .order('created_at', { ascending: false })
       .limit(5)
 
     if (error) throw error
+    if (!plays || plays.length === 0) {
+      setRecentPlays([])
+      return
+    }
 
-    const mapped = (data || []).map((item: any) => ({
-      id: item.tracks.id,
-      title: item.tracks.title,
-      audio_path: item.tracks.audio_path,
-      artist_id: item.tracks.artist_id,
-      cover_path: item.tracks.cover_path,
-      artist_name: item.tracks.profiles?.full_name || 'Unknown Artist'
+    // Step 2: Get the track details
+    const trackIds = plays.map(p => p.track_id)
+    const { data: tracks } = await supabase
+      .from('tracks')
+      .select('id, title, cover_path, artist_id')
+      .in('id', trackIds)
+
+    if (!tracks || tracks.length === 0) {
+      setRecentPlays([])
+      return
+    }
+
+    // Step 3: Get artist names
+    const artistIds = Array.from(new Set(tracks.map(t => t.artist_id)))
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', artistIds)
+
+    const names = Object.fromEntries((profiles || []).map(p => [p.id, p.full_name]))
+
+    const mapped: Track[] = tracks.map(t => ({
+      id: t.id,
+      title: t.title,
+      cover_path: t.cover_path,
+      artist_name: names[t.artist_id] || 'Unknown Artist'
     }))
     setRecentPlays(mapped)
   }
@@ -143,8 +189,6 @@ export default function LibraryPage() {
       loadPlaylists(session.user.id)
     }
   }
-
-  // --- RENDER STATES ---
 
   if (loading) {
     return (
@@ -184,11 +228,9 @@ export default function LibraryPage() {
 
           {message && <p style={{ color: 'var(--mint)', marginBottom: 20, fontWeight: 600 }}>{message}</p>}
 
-          {/* 1. Recently Played */}
+          {/* Recently Played */}
           <section style={{ marginBottom: 48 }}>
-            <h2 style={{ fontSize: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🕘 Recently Played
-            </h2>
+            <h2 style={{ fontSize: 20, marginBottom: 16 }}>🕘 Recently Played</h2>
             {recentPlays.length === 0 ? (
               <div style={{ padding: 24, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--bg-alt)', color: 'var(--text-dim)', textAlign: 'center' }}>
                 No recent plays. <Link href="/discover" style={{ color: 'var(--yellow)' }}>Go discover some music!</Link>
@@ -199,9 +241,7 @@ export default function LibraryPage() {
                   <div 
                     key={track.id} 
                     onClick={() => player.playTrack(track, recentPlays)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 12, borderRadius: 8, background: 'var(--bg-alt)', cursor: 'pointer', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--line)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-alt)')}
+                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 12, borderRadius: 8, background: 'var(--bg-alt)', cursor: 'pointer' }}
                   >
                     <div style={{ width: 48, height: 48, borderRadius: 6, background: 'linear-gradient(135deg, #ff4d6d, #ffc845)', overflow: 'hidden', flexShrink: 0 }}>
                       {track.cover_path && <img src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/covers/${track.cover_path}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -216,11 +256,9 @@ export default function LibraryPage() {
             )}
           </section>
 
-          {/* 2. Liked Songs */}
+          {/* Liked Songs */}
           <section style={{ marginBottom: 48 }}>
-            <h2 style={{ fontSize: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              ❤️ Liked Songs <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 400 }}>({likedTracks.length})</span>
-            </h2>
+            <h2 style={{ fontSize: 20, marginBottom: 16 }}>❤️ Liked Songs <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 400 }}>({likedTracks.length})</span></h2>
             {likedTracks.length === 0 ? (
               <div style={{ padding: 24, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--bg-alt)', color: 'var(--text-dim)', textAlign: 'center' }}>
                 No liked songs yet. Songs you ❤️ will appear here.
@@ -231,9 +269,7 @@ export default function LibraryPage() {
                   <div 
                     key={track.id} 
                     onClick={() => player.playTrack(track, likedTracks)}
-                    style={{ padding: 12, borderRadius: 12, background: 'var(--bg-alt)', cursor: 'pointer', border: '1px solid var(--line)', transition: 'transform 0.2s' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-4px)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+                    style={{ padding: 12, borderRadius: 12, background: 'var(--bg-alt)', cursor: 'pointer', border: '1px solid var(--line)' }}
                   >
                     <div style={{ width: '100%', aspectRatio: '1/1', borderRadius: 8, background: 'linear-gradient(135deg, #37e6c4, #1b2140)', marginBottom: 12, overflow: 'hidden' }}>
                       {track.cover_path && <img src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/covers/${track.cover_path}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -246,13 +282,10 @@ export default function LibraryPage() {
             )}
           </section>
 
-          {/* 3. Your Playlists */}
+          {/* Your Playlists */}
           <section>
-            <h2 style={{ fontSize: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🎵 Your Playlists
-            </h2>
+            <h2 style={{ fontSize: 20, marginBottom: 16 }}>🎵 Your Playlists</h2>
             
-            {/* Create Playlist Form */}
             <div style={{ border: '1px solid var(--line)', borderRadius: 16, padding: 24, background: 'var(--bg-alt)', marginBottom: 24 }}>
               <h3 style={{ marginBottom: 16, fontSize: 16 }}>Create New Playlist</h3>
               <form onSubmit={createPlaylist} style={{ display: 'grid', gap: 12 }}>
@@ -275,7 +308,6 @@ export default function LibraryPage() {
               </form>
             </div>
 
-            {/* Playlists Grid */}
             {playlists.length === 0 ? (
               <div style={{ padding: 32, border: '1px dashed var(--line)', borderRadius: 12, textAlign: 'center', color: 'var(--text-dim)' }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>📁</div>
@@ -286,7 +318,7 @@ export default function LibraryPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
                 {playlists.map((p) => (
                   <Link key={p.id} href={`/playlist/${p.id}`} style={{ textDecoration: 'none' }}>
-                    <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 20, background: 'var(--bg-alt)', transition: 'transform 0.2s, border-color 0.2s' }}>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 20, background: 'var(--bg-alt)' }}>
                       <div style={{ width: 48, height: 48, borderRadius: 8, background: 'linear-gradient(135deg, #37e6c4, #1b2140)', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🎵</div>
                       <div style={{ color: 'var(--text)', fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                       <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{p.track_count} tracks</div>
@@ -296,7 +328,6 @@ export default function LibraryPage() {
               </div>
             )}
           </section>
-
         </div>
       </main>
     </>
