@@ -226,19 +226,7 @@ export default function DiscoverPage() {
 
   return (
     <>
-      <header>
-        <div className="wrap">
-          <nav>
-            <Link href="/" className="logo">
-              JIG'S<span className="dot">Wurl</span>D
-            </Link>
-            <div className="nav-cta">
-              <Link href="/dashboard" className="btn btn-ghost">Dashboard</Link>
-              <Link href="/upload" className="btn btn-primary">Upload</Link>
-            </div>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <main id="top">
         <section id="discover">

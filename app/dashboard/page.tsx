@@ -122,17 +122,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <header>
-        <div className="wrap">
-          <nav>
-            <Link href="/" className="logo">JIG'S<span className="dot">Wurl</span>D</Link>
-            <div className="nav-cta">
-              <Link href="/discover" className="btn btn-ghost">Discover</Link>
-              <Link href="/library" className="btn btn-ghost">Library</Link>
-            </div>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <main>
         <div className="wrap" style={{ padding: '50px 28px 140px', maxWidth: 1000, margin: '0 auto' }}>
