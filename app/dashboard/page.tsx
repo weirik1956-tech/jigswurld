@@ -1,5 +1,6 @@
 'use client'
 
+import Header from '../components/Header'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
