@@ -15,7 +15,7 @@ type Track = {
   lyrics: string | null
   lyrics_sync: string | null
   genre: string | null
-  created_at: string | null
+ created_at?: string
   artist_id: string
 }
 
@@ -193,7 +193,7 @@ export default function TrackPage() {
     if (player.current?.id === track.id) {
       player.seekTo(t)
     } else {
-      const playerTrack = { ...track, created_at: track.created_at ?? undefined }
+      const playerTrack = { ...track }
       player.playTrack(playerTrack, [playerTrack])
       setTimeout(() => player.seekTo(t), 500)
     }

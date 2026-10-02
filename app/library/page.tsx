@@ -6,11 +6,14 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePlayer } from '@/app/player-context'
 
+// UPDATED: Added audio_path and artist_id so the player can actually play them
 type Track = {
   id: string
   title: string
-  artist_name: string
+  audio_path: string
   cover_path: string | null
+  artist_id: string
+  artist_name: string
 }
 
 type Playlist = {
@@ -79,7 +82,6 @@ export default function LibraryPage() {
   }
 
   async function loadLikedTracks(userId: string) {
-    // Step 1: Get the liked track IDs
     const { data: likes, error } = await supabase
       .from('likes')
       .select('track_id')
@@ -93,11 +95,11 @@ export default function LibraryPage() {
       return
     }
 
-    // Step 2: Get the track details
+    // UPDATED: Added audio_path and artist_id to the select
     const trackIds = likes.map(l => l.track_id)
     const { data: tracks } = await supabase
       .from('tracks')
-      .select('id, title, cover_path, artist_id')
+      .select('id, title, cover_path, audio_path, artist_id')
       .in('id', trackIds)
 
     if (!tracks || tracks.length === 0) {
@@ -105,7 +107,6 @@ export default function LibraryPage() {
       return
     }
 
-    // Step 3: Get artist names
     const artistIds = Array.from(new Set(tracks.map(t => t.artist_id)))
     const { data: profiles } = await supabase
       .from('profiles')
@@ -117,14 +118,15 @@ export default function LibraryPage() {
     const mapped: Track[] = tracks.map(t => ({
       id: t.id,
       title: t.title,
+      audio_path: t.audio_path,
       cover_path: t.cover_path,
+      artist_id: t.artist_id,
       artist_name: names[t.artist_id] || 'Unknown Artist'
     }))
     setLikedTracks(mapped)
   }
 
   async function loadRecentPlays(userId: string) {
-    // Step 1: Get the played track IDs
     const { data: plays, error } = await supabase
       .from('plays')
       .select('track_id')
@@ -138,11 +140,11 @@ export default function LibraryPage() {
       return
     }
 
-    // Step 2: Get the track details
+    // UPDATED: Added audio_path and artist_id to the select
     const trackIds = plays.map(p => p.track_id)
     const { data: tracks } = await supabase
       .from('tracks')
-      .select('id, title, cover_path, artist_id')
+      .select('id, title, cover_path, audio_path, artist_id')
       .in('id', trackIds)
 
     if (!tracks || tracks.length === 0) {
@@ -150,7 +152,6 @@ export default function LibraryPage() {
       return
     }
 
-    // Step 3: Get artist names
     const artistIds = Array.from(new Set(tracks.map(t => t.artist_id)))
     const { data: profiles } = await supabase
       .from('profiles')
@@ -162,7 +163,9 @@ export default function LibraryPage() {
     const mapped: Track[] = tracks.map(t => ({
       id: t.id,
       title: t.title,
+      audio_path: t.audio_path,
       cover_path: t.cover_path,
+      artist_id: t.artist_id,
       artist_name: names[t.artist_id] || 'Unknown Artist'
     }))
     setRecentPlays(mapped)
@@ -228,7 +231,6 @@ export default function LibraryPage() {
 
           {message && <p style={{ color: 'var(--mint)', marginBottom: 20, fontWeight: 600 }}>{message}</p>}
 
-          {/* Recently Played */}
           <section style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 20, marginBottom: 16 }}>🕘 Recently Played</h2>
             {recentPlays.length === 0 ? (
@@ -256,7 +258,6 @@ export default function LibraryPage() {
             )}
           </section>
 
-          {/* Liked Songs */}
           <section style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 20, marginBottom: 16 }}>❤️ Liked Songs <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 400 }}>({likedTracks.length})</span></h2>
             {likedTracks.length === 0 ? (
@@ -282,7 +283,6 @@ export default function LibraryPage() {
             )}
           </section>
 
-          {/* Your Playlists */}
           <section>
             <h2 style={{ fontSize: 20, marginBottom: 16 }}>🎵 Your Playlists</h2>
             
