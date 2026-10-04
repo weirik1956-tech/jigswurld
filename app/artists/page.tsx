@@ -3,36 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-
-import { Metadata, ResolvingMetadata } from 'next'
-import { supabase } from '@/lib/supabase'
-
-export async function generateMetadata(
-  { params }: { params: { id: string } },
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, bio')
-    .eq('id', params.id)
-    .maybeSingle()
-
-  const name = profile?.full_name || 'Artist'
-  const title = `${name} | JIG'SWurlD`
-  const description = profile?.bio 
-    ? `${profile.bio} — Listen to their music on JIG'SWurlD.` 
-    : `Listen to music by ${name} on JIG'SWurlD. Stream independent music and support artists directly.`
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'profile',
-    },
-  }
-}
+import Header from '../components/Header'
 
 type Artist = {
   id: string
@@ -75,10 +46,12 @@ export default function ArtistsPage() {
         const ids = list.map((a) => a.id)
         const { data: fols } = await supabase.from('follows').select('artist_id').in('artist_id', ids)
         const { data: trks } = await supabase.from('tracks').select('artist_id').in('artist_id', ids)
+        
         const fc: Record<string, number> = {}
         const tc: Record<string, number> = {}
         for (const f of fols ?? []) fc[f.artist_id] = (fc[f.artist_id] || 0) + 1
         for (const t of trks ?? []) tc[t.artist_id] = (tc[t.artist_id] || 0) + 1
+        
         list.forEach((a) => {
           a.followers = fc[a.id] || 0
           a.tracks = tc[a.id] || 0
@@ -93,20 +66,7 @@ export default function ArtistsPage() {
 
   return (
     <>
-      <header>
-        <div className="wrap">
-          <nav>
-            <Link href="/" className="logo">
-              JIG'S<span className="dot">Wurl</span>D
-            </Link>
-            <div className="nav-cta">
-              <Link href="/discover" className="btn btn-ghost">Discover</Link>
-              <Link href="/upload" className="btn btn-primary">Upload</Link>
-            </div>
-          </nav>
-        </div>
-      </header>
-
+      <Header />
       <main>
         <div className="wrap" style={{ padding: '50px 28px 140px' }}>
           <div className="eyebrow">The roster</div>
@@ -120,61 +80,23 @@ export default function ArtistsPage() {
           ) : artists.length === 0 ? (
             <div className="locked-note">No artists yet. Be the first — upload a track!</div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 20,
-              }}
-            >
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
               {artists.map((a, i) => (
                 <Link
                   key={a.id}
                   href={'/artist/' + a.id}
-                  style={{
-                    border: '1px solid var(--line)',
-                    borderRadius: 16,
-                    padding: 20,
-                    background: 'var(--bg-alt)',
-                    textDecoration: 'none',
-                    display: 'block',
-                  }}
+                  style={{ border: '1px solid var(--line)', borderRadius: 16, padding: 20, background: 'var(--bg-alt)', textDecoration: 'none', display: 'block' }}
                 >
-                  <div
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: '50%',
-                      background: FALLBACKS[i % FALLBACKS.length],
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: 26,
-                      color: 'var(--bg)',
-                      marginBottom: 14,
-                      overflow: 'hidden',
-                    }}
-                  >
+                  <div style={{ width: 72, height: 72, borderRadius: '50%', background: FALLBACKS[i % FALLBACKS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 26, color: 'var(--bg)', marginBottom: 14, overflow: 'hidden' }}>
                     {a.avatar_url ? (
-                      <img
-                        src={a.avatar_url}
-                        alt={a.full_name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
+                      <img src={a.avatar_url} alt={a.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       (a.full_name || '?').charAt(0).toUpperCase()
                     )}
                   </div>
-                  <div style={{ color: 'var(--text)', fontWeight: 700, marginBottom: 4 }}>
-                    {a.full_name}
-                  </div>
-                  <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 8 }}>
-                    {a.tracks} tracks · {a.followers} followers
-                  </div>
-                  <div style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.5 }}>
-                    {(a.bio || 'Independent artist on JIG\'SWurlD.').slice(0, 80)}
-                  </div>
+                  <div style={{ color: 'var(--text)', fontWeight: 700, marginBottom: 4 }}>{a.full_name}</div>
+                  <div style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 8 }}>{a.tracks} tracks · {a.followers} followers</div>
+                  <div style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.5 }}>{(a.bio || 'Independent artist on JIG\'SWurlD.').slice(0, 80)}</div>
                 </Link>
               ))}
             </div>
