@@ -4,6 +4,36 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
+import { Metadata, ResolvingMetadata } from 'next'
+import { supabase } from '@/lib/supabase'
+
+export async function generateMetadata(
+  { params }: { params: { id: string } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, bio')
+    .eq('id', params.id)
+    .maybeSingle()
+
+  const name = profile?.full_name || 'Artist'
+  const title = `${name} | JIG'SWurlD`
+  const description = profile?.bio 
+    ? `${profile.bio} — Listen to their music on JIG'SWurlD.` 
+    : `Listen to music by ${name} on JIG'SWurlD. Stream independent music and support artists directly.`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'profile',
+    },
+  }
+}
+
 type Artist = {
   id: string
   full_name: string
